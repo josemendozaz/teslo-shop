@@ -57,3 +57,12 @@ report.[0-9]*.[0-9]*.[0-9]*.[0-9]*.json
 
 #DB
 postgres/
+
+
+# Ignorar todos los archivos dentro de la carpeta static/products
+/static/products/*
+/public/products/*
+
+# EXCEPTO el archivo .gitkeep para que la carpeta no se elimine del repo
+!/static/products/.gitkeep
+!/public/products/.gitkeep
