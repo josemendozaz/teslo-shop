@@ -4,6 +4,8 @@ import { Product, ProductImage } from 'src/products/entities';
 import { ProductsService } from 'src/products/products.service';
 import { DataSource, Repository } from 'typeorm';
 import { initialData } from './data/see-data';
+import { User } from 'src/auth/entities';
+import { ValidRoles } from 'src/auth/interfaces';
 
 @Injectable()
 export class SeedService {
@@ -12,20 +14,49 @@ export class SeedService {
 
 	constructor(
 		private readonly productsService: ProductsService,
+		@InjectRepository( User )
+		private readonly userRepository : Repository<User>
 	) {}
 
 
 	async runSeed() {
-		await this.insertNewProducts();
+		await this.deleteTables();
+		const adminUser = await this.insertUsers();
+		await this.insertNewProducts( adminUser );
 		return 'SEED execute';
 	}
 
-	private async insertNewProducts() {
+	private async deleteTables() {
+		//// Borra todos los productos
+		await this.productsService.deleteAllProducts();
+		//// Borra todos los usuarios
+		const queryBuilder = this.userRepository.createQueryBuilder();
+		await queryBuilder
+			.delete()
+			// .where({})
+			.execute();
+	}
+
+	private async insertUsers() {
+		const seedUsers = initialData.users;
+		const users: User[] = [];
+		seedUsers.forEach(user=>{
+			const dbUser = this.userRepository.create({ ///// el .create no inserta en BD, solo lo prepara con los IDs
+				...user,
+				roles: user.roles as ValidRoles[] 
+			});
+			users.push( dbUser )  
+		});
+		const dbUsers = await this.userRepository.save( users );
+		return dbUsers[ 0 ];
+	}
+
+	private async insertNewProducts( user: User ) {
 		const query = await this.productsService.deleteAllProducts();
 		const products = initialData.products;
 		const insertPromises: Promise<any>[] = [];
 		products.forEach( product => {
-			insertPromises.push( this.productsService.create( product ) )
+			insertPromises.push( this.productsService.create( product, user ) )
 		});
 		await Promise.all( insertPromises );
 		return true;
